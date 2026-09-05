@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>AURORA · BTC 45m</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lightweight-charts/4.1.3/lightweight-charts.standalone.production.js"></script>
+<style>
+:root{
+  --bg:#070a0f; --panel:#0e131b; --panel2:#121926; --line:#1d2634;
+  --tx:#dbe3ee; --mut:#66748a; --dim:#3f4a5c;
+  --grn:#00d68f; --red:#ff4d6a; --amb:#ffb020; --zl:#e8c547; --blu:#4a9eff;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);color:var(--tx);font-family:'Space Grotesk',system-ui,sans-serif}
+body{padding:10px 10px calc(24px + env(safe-area-inset-bottom));max-width:1180px;margin:0 auto}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+
+header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:4px 2px 12px}
+.brand{font-weight:700;font-size:19px;letter-spacing:.14em}
+.sub{color:var(--mut);font-size:12px;letter-spacing:.05em}
+.spacer{flex:1}
+.conn{font-size:11px;color:var(--mut);display:flex;align-items:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--dim);transition:background .3s}
+.dot.on{background:var(--grn);box-shadow:0 0 8px var(--grn)}
+.dot.warn{background:var(--amb)}
+.dot.off{background:var(--red)}
+
+.grid{display:grid;gap:10px}
+.top{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+@media(max-width:760px){.top{grid-template-columns:1fr}}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card h2{font-size:11px;font-weight:500;color:var(--mut);letter-spacing:.13em;margin-bottom:12px}
+
+.px{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+.px .v{font-size:34px;font-weight:700;letter-spacing:-.01em}
+.px .ch{font-size:14px;font-weight:500}
+.px .tf{color:var(--mut);font-size:12px;margin-left:auto}
+.up{color:var(--grn)} .dn{color:var(--red)} .flat{color:var(--mut)}
+
+.verdict{display:flex;align-items:center;gap:14px;padding:14px;border-radius:10px;
+  background:var(--panel2);border:1px solid var(--line);margin-bottom:12px}
+.verdict .big{font-size:26px;font-weight:700;letter-spacing:.05em;line-height:1}
+.verdict .note{font-size:12px;color:var(--mut);line-height:1.5}
+.verdict.long{border-color:rgba(0,214,143,.45);background:rgba(0,214,143,.07)}
+.verdict.long .big{color:var(--grn)}
+.verdict.short{border-color:rgba(255,77,106,.45);background:rgba(255,77,106,.07)}
+.verdict.short .big{color:var(--red)}
+.verdict.none .big{color:var(--mut)}
+
+.gates{display:grid;gap:7px}
+.gate{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:11px;
+  padding:10px 12px;background:var(--panel2);border:1px solid var(--line);border-radius:9px}
+.led{width:9px;height:9px;border-radius:50%;background:var(--dim)}
+.led.g{background:var(--grn);box-shadow:0 0 7px rgba(0,214,143,.7)}
+.led.r{background:var(--red);box-shadow:0 0 7px rgba(255,77,106,.7)}
+.gate .nm{font-size:13px;font-weight:500}
+.gate .nm i{display:block;font-style:normal;font-size:11px;color:var(--mut);margin-top:2px}
+.gate .val{font-size:12px;color:var(--tx);text-align:right;white-space:nowrap}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px;margin-top:12px}
+.st{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+.st .k{font-size:10px;color:var(--mut);letter-spacing:.08em;margin-bottom:4px}
+.st .v{font-size:15px;font-weight:500}
+
+.ctrls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{background:none;border:0;color:var(--mut);font:500 12px 'Space Grotesk',sans-serif;
+  padding:7px 13px;cursor:pointer}
+.seg button.sel{background:var(--line);color:var(--tx)}
+.hint{font-size:11px;color:var(--dim);flex:1;min-width:180px}
+
+#chart{height:400px;width:100%}
+@media(max-width:760px){#chart{height:300px}}
+
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;font-size:10px;color:var(--mut);letter-spacing:.09em;font-weight:500;
+  padding:0 8px 8px;border-bottom:1px solid var(--line)}
+td{padding:9px 8px;border-bottom:1px solid rgba(29,38,52,.5)}
+tr:last-child td{border-bottom:0}
+.tag{display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:700;letter-spacing:.06em}
+.tag.L{background:rgba(0,214,143,.15);color:var(--grn)}
+.tag.S{background:rgba(255,77,106,.15);color:var(--red)}
+.tag.X{background:rgba(255,176,32,.13);color:var(--amb)}
+.empty{color:var(--dim);font-size:12px;padding:18px 8px;text-align:center}
+
+.banner{display:none;background:rgba(255,77,106,.1);border:1px solid rgba(255,77,106,.4);
+  color:#ffb3c0;border-radius:9px;padding:11px 13px;font-size:12.5px;line-height:1.5;margin-bottom:10px}
+.banner.show{display:block}
+.banner b{color:#fff}
+button.retry{background:var(--line);border:0;color:var(--tx);font:500 11px 'Space Grotesk',sans-serif;
+  padding:5px 11px;border-radius:6px;cursor:pointer;margin-top:8px}
+footer{color:var(--dim);font-size:11px;line-height:1.6;padding:14px 4px 0}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand">AURORA</span>
+  <span class="sub">BTCUSDT.P · 45m · CE 4/2 + ZLSMA 38 + MACD</span>
+  <span class="spacer"></span>
+  <span class="conn"><span class="dot" id="dot"></span><span id="connTxt">connecting</span></span>
+</header>
+
+<div class="banner" id="banner"></div>
+
+<div class="grid top">
+
+  <section class="card">
+    <div class="px">
+      <span class="v mono" id="price">—</span>
+      <span class="ch mono" id="chg"></span>
+      <span class="tf" id="clock">next close —</span>
+    </div>
+    <div class="verdict none" id="verdict">
+      <div class="big" id="vBig">LOADING</div>
+      <div class="note" id="vNote">Fetching 15-minute candles from Bybit.</div>
+    </div>
+    <div class="gates" id="gates"></div>
+    <div class="stats">
+      <div class="st"><div class="k">CE STOP</div><div class="v mono" id="sStop">—</div></div>
+      <div class="st"><div class="k">STOP DIST</div><div class="v mono" id="sDist">—</div></div>
+      <div class="st"><div class="k">ZLSMA</div><div class="v mono" id="sZl">—</div></div>
+      <div class="st"><div class="k">MACD Δ</div><div class="v mono" id="sMd">—</div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Strategy position</h2>
+    <div class="ctrls">
+      <div class="seg" id="segExit">
+        <button data-v="flip" class="sel">Exit on CE flip</button>
+        <button data-v="strict">Exit on any</button>
+      </div>
+      <span class="hint">How a position is closed. Entry always needs all three.</span>
+    </div>
+    <div class="stats" style="margin-top:0">
+      <div class="st"><div class="k">POSITION</div><div class="v" id="pSide">FLAT</div></div>
+      <div class="st"><div class="k">ENTRY</div><div class="v mono" id="pEntry">—</div></div>
+      <div class="st"><div class="k">OPEN P&amp;L</div><div class="v mono" id="pPnl">—</div></div>
+      <div class="st"><div class="k">BARS HELD</div><div class="v mono" id="pBars">—</div></div>
+    </div>
+    <div class="stats">
+      <div class="st"><div class="k">CLOSED TRADES</div><div class="v mono" id="pN">0</div></div>
+      <div class="st"><div class="k">WIN RATE</div><div class="v mono" id="pWr">—</div></div>
+      <div class="st"><div class="k">NET (FEES IN)</div><div class="v mono" id="pNet">—</div></div>
+      <div class="st"><div class="k">PROFIT FACTOR</div><div class="v mono" id="pPf">—</div></div>
+    </div>
+    <p style="color:var(--dim);font-size:11px;line-height:1.55;margin-top:11px">
+      Walked forward over the loaded history at 0.055% per side. Signals are read from
+      closed 45m candles only.
+    </p>
+  </section>
+</div>
+
+<section class="card" style="margin-top:10px">
+  <div id="chart"></div>
+</section>
+
+<section class="card" style="margin-top:10px">
+  <h2>Signal history</h2>
+  <div style="overflow-x:auto">
+    <table>
+      <thead><tr><th>Time (UTC)</th><th>Event</th><th>Price</th><th>CE stop</th><th>Result</th></tr></thead>
+      <tbody id="log"><tr><td colspan="5" class="empty">No signals yet.</td></tr></tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  Bybit publishes no 45-minute interval, so each candle is built from three 15-minute
+  candles on the UTC-midnight grid (00:00, 00:45, 01:30 …). The bar at the right edge is
+  still forming and is excluded from signals.
+</footer>
+
+<script>
+'use strict';
+
+/* ─────────── config ─────────── */
+const SYMBOL   = 'BTCUSDT';
+const BASE_MIN = 15;
+const BUCKET   = 45 * 60 * 1000;
+const BASE_MS  = BASE_MIN * 60 * 1000;
+const CE_LEN = 4, CE_MULT = 2, Z_LEN = 38;
+const MACD_F = 12, MACD_S = 26, MACD_SIG = 9;
+const FEE = 0.00055;                 // Bybit taker, per side
+const REST_HOSTS = ['https://api.bybit.com', 'https://api.bytick.com'];
+const WS   = 'wss://stream.bybit.com/v5/public/linear';
+
+/* ─────────── indicator core (verified in Node) ─────────── */
+function aggregate(bars, bucketMs, baseMs){
+  const need = Math.round(bucketMs / baseMs), out = [];
+  let cur = null;
+  for (const b of bars){
+    const bt = Math.floor(b.t / bucketMs) * bucketMs;
+    if (!cur || cur.t !== bt){
+      if (cur) out.push(cur);
+      cur = {t:bt, o:b.o, h:b.h, l:b.l, c:b.c, v:b.v, n:1};
+    } else {
+      cur.h = Math.max(cur.h, b.h); cur.l = Math.min(cur.l, b.l);
+      cur.c = b.c; cur.v += b.v; cur.n++;
+    }
+  }
+  if (cur) out.push(cur);
+  if (out.length && out[0].n < need) out.shift();          // leading bucket missing sub-candles
+  if (out.length && out[out.length-1].n < need) out[out.length-1].partial = true;
+  return out;
+}
+function rma(src, len){
+  const out = new Array(src.length).fill(NaN); let sum = 0;
+  for (let i=0;i<src.length;i++){
+    if (i < len){ sum += src[i]; if (i === len-1) out[i] = sum/len; }
+    else out[i] = (out[i-1]*(len-1) + src[i]) / len;
+  }
+  return out;
+}
+function atr(bars, len){
+  const tr = bars.map((b,i)=> i===0 ? b.h-b.l
+    : Math.max(b.h-b.l, Math.abs(b.h-bars[i-1].c), Math.abs(b.l-bars[i-1].c)));
+  return rma(tr, len);
+}
+function chandelier(bars, len, mult){
+  const a = atr(bars, len), n = bars.length;
+  const longStop = new Array(n).fill(NaN), shortStop = new Array(n).fill(NaN), dir = new Array(n).fill(NaN);
+  for (let i=0;i<n;i++){
+    if (isNaN(a[i])) continue;
+    let hh = -Infinity, ll = Infinity;
+    for (let k=Math.max(0,i-len+1);k<=i;k++){ hh = Math.max(hh,bars[k].h); ll = Math.min(ll,bars[k].l); }
+    let ls = hh - mult*a[i], ss = ll + mult*a[i];
+    const lsPrev = isNaN(longStop[i-1]) ? ls : longStop[i-1];
+    const ssPrev = isNaN(shortStop[i-1]) ? ss : shortStop[i-1];
+    if (i>0 && bars[i-1].c > lsPrev) ls = Math.max(ls, lsPrev);   // ratchet up
+    if (i>0 && bars[i-1].c < ssPrev) ss = Math.min(ss, ssPrev);   // ratchet down
+    longStop[i] = ls; shortStop[i] = ss;
+    const prev = isNaN(dir[i-1]) ? 1 : dir[i-1];
+    dir[i] = bars[i].c > ssPrev ? 1 : bars[i].c < lsPrev ? -1 : prev;
+  }
+  return {longStop, shortStop, dir};
+}
+function linreg(src, len){
+  const out = new Array(src.length).fill(NaN);
+  for (let i=len-1;i<src.length;i++){
+    let sy=0, sx=0, sxy=0, sxx=0, ok=true;
+    for (let j=0;j<len;j++){
+      const y = src[i-len+1+j];
+      if (isNaN(y)){ ok = false; break; }
+      sy += y; sx += j; sxy += j*y; sxx += j*j;
+    }
+    if (!ok) continue;
+    const slope = (len*sxy - sx*sy) / (len*sxx - sx*sx);
+    out[i] = (sy - slope*sx)/len + slope*(len-1);
+  }
+  return out;
+}
+function zlsma(cl, len){
+  const l1 = linreg(cl, len), l2 = linreg(l1, len);
+  return cl.map((_,i)=> isNaN(l2[i]) ? NaN : l1[i] + (l1[i]-l2[i]));
+}
+function ema(src, len){
+  const out = new Array(src.length).fill(NaN), k = 2/(len+1);
+  let seed = 0, cnt = 0;
+  for (let i=0;i<src.length;i++){
+    if (isNaN(src[i])) continue;
+    if (cnt < len){ seed += src[i]; cnt++; if (cnt === len) out[i] = seed/len; }
+    else out[i] = src[i]*k + out[i-1]*(1-k);
+  }
+  return out;
+}
+function macd(cl,f,s,sg){
+  const ef = ema(cl,f), es = ema(cl,s);
+  const line = cl.map((_,i)=> isNaN(ef[i])||isNaN(es[i]) ? NaN : ef[i]-es[i]);
+  return {line, signal: ema(line, sg)};
+}
+
+/* ─────────── state ─────────── */
+let base15 = [];        // raw 15m candles, ascending
+let bars = [];          // aggregated 45m
+let ind = null;
+let exitMode = 'flip';
+let lastPx = null, prevClose = null;
+let chart, candleS, zlS, longS, shortS;
+
+/* ─────────── helpers ─────────── */
+const $ = id => document.getElementById(id);
+const fmt = (n,d=2) => n==null||isNaN(n) ? '—'
+  : n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const utc = ms => new Date(ms).toISOString().slice(5,16).replace('T',' ');
+
+function setConn(cls, txt){ $('dot').className = 'dot ' + cls; $('connTxt').textContent = txt; }
+function showBanner(html){ const b = $('banner'); b.innerHTML = html; b.classList.add('show'); }
+function hideBanner(){ $('banner').classList.remove('show'); }
+
+/* ─────────── data ─────────── */
+async function fetchPage(endMs){
+  const path = `/v5/market/kline?category=linear&symbol=${SYMBOL}&interval=${BASE_MIN}&limit=1000`
+             + (endMs ? `&end=${endMs}` : '');
+  let lastErr;
+  for (const host of REST_HOSTS){
+    const ctl = new AbortController();
+    const timer = setTimeout(()=>ctl.abort(), 12000);
+    try {
+      const r = await fetch(host + path, {signal: ctl.signal});
+      clearTimeout(timer);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json();
+      if (j.retCode !== 0) throw new Error(j.retMsg || 'Bybit error ' + j.retCode);
+      return j.result.list.map(k => ({
+        t:+k[0], o:+k[1], h:+k[2], l:+k[3], c:+k[4], v:+k[5]
+      })).sort((a,b)=>a.t-b.t);
+    } catch (e){
+      clearTimeout(timer);
+      lastErr = e.name === 'AbortError' ? new Error('request timed out after 12s') : e;
+    }
+  }
+  throw lastErr;
+}
+
+async function loadHistory(){
+  const p1 = await fetchPage();
+  const p2 = await fetchPage(p1[0].t - 1);
+  const seen = new Set();
+  base15 = [...p2, ...p1].filter(b => !seen.has(b.t) && seen.add(b.t)).sort((a,b)=>a.t-b.t);
+  rebuild();
+}
+
+function rebuild(){
+  bars = aggregate(base15, BUCKET, BASE_MS);
+  if (bars.length < 2*Z_LEN + MACD_S){
+    showBanner('<b>Not enough history.</b> ZLSMA 38 needs about 75 closed 45m candles before it produces a value.');
+    return;
+  }
+  const cl = bars.map(b=>b.c);
+  const ce = chandelier(bars, CE_LEN, CE_MULT);
+  const z  = zlsma(cl, Z_LEN);
+  const m  = macd(cl, MACD_F, MACD_S, MACD_SIG);
+  ind = {ce, z, m, cl};
+  render();
+}
+
+/* ─────────── strategy walk-forward ─────────── */
+function walkForward(){
+  const {ce,z,m,cl} = ind;
+  const last = bars[bars.length-1].partial ? bars.length-2 : bars.length-1;
+  let pos = 0, entry = 0, entryIdx = 0;
+  const trades = [], events = [];
+
+  for (let i=0;i<=last;i++){
+    if (isNaN(z[i]) || isNaN(m.signal[i]) || isNaN(ce.dir[i])) continue;
+    const d = ce.dir[i], c = cl[i];
+    const L = d===1  && c > z[i] && m.line[i] > m.signal[i];
+    const S = d===-1 && c < z[i] && m.line[i] < m.signal[i];
+    const flipL = d===1 && ce.dir[i-1]===-1;
+    const flipS = d===-1 && ce.dir[i-1]===1;
+    const exitL = exitMode==='strict' ? (d===-1 || c<z[i] || m.line[i]<m.signal[i]) : flipS;
+    const exitS = exitMode==='strict' ? (d===1  || c>z[i] || m.line[i]>m.signal[i]) : flipL;
+
+    const close = (why) => {
+      const gross = pos===1 ? (c-entry)/entry : (entry-c)/entry;
+      const net = gross - 2*FEE;
+      trades.push(net);
+      events.push({t:bars[i].t, kind:'X', px:c, stop:pos===1?ce.longStop[i]:ce.shortStop[i], net, why});
+      pos = 0;
+    };
+
+    if (pos===1 && exitL) close('exit long');
+    else if (pos===-1 && exitS) close('exit short');
+
+    if (pos===0 && L){ pos=1; entry=c; entryIdx=i; events.push({t:bars[i].t,kind:'L',px:c,stop:ce.longStop[i]}); }
+    else if (pos===0 && S){ pos=-1; entry=c; entryIdx=i; events.push({t:bars[i].t,kind:'S',px:c,stop:ce.shortStop[i]}); }
+  }
+  return {pos, entry, entryIdx, trades, events, last};
+}
+
+/* ─────────── render ─────────── */
+function render(){
+  if (!ind) return;
+  hideBanner();
+  const {ce,z,m,cl} = ind;
+  const wf = walkForward();
+  const i = wf.last;
+  const d = ce.dir[i], c = cl[i];
+  const px = lastPx ?? c;
+
+  // price
+  $('price').textContent = fmt(px, 1);
+  if (prevClose != null){
+    const p = (px - prevClose)/prevClose*100;
+    const el = $('chg');
+    el.textContent = (p>=0?'+':'') + p.toFixed(2) + '%';
+    el.className = 'ch mono ' + (p>0?'up':p<0?'dn':'flat');
+  }
+
+  // gates
+  const gz = c > z[i], gm = m.line[i] > m.signal[i];
+  const gates = [
+    {nm:'Chandelier Exit', sub:'length 4, multiplier 2',
+     on: d===1, val: d===1 ? 'long · stop ' + fmt(ce.longStop[i],0)
+                           : 'short · stop ' + fmt(ce.shortStop[i],0)},
+    {nm:'ZLSMA 38', sub: gz ? 'close above line' : 'close below line',
+     on: gz, val: fmt(z[i],1)},
+    {nm:'MACD 12/26/9', sub: gm ? 'line above signal' : 'line below signal',
+     on: gm, val: (m.line[i]-m.signal[i]>=0?'+':'') + fmt(m.line[i]-m.signal[i],1)}
+  ];
+  $('gates').innerHTML = gates.map(g =>
+    `<div class="gate"><span class="led ${g.on?'g':'r'}"></span>
+      <span class="nm">${g.nm}<i>${g.sub}</i></span>
+      <span class="val mono">${g.val}</span></div>`).join('');
+
+  // verdict
+  const L = d===1 && gz && gm, S = d===-1 && !gz && !gm;
+  const v = $('verdict');
+  if (L){ v.className='verdict long'; $('vBig').textContent='LONG'; $('vNote').textContent='All three conditions aligned on the last closed 45m candle.'; }
+  else if (S){ v.className='verdict short'; $('vBig').textContent='SHORT'; $('vNote').textContent='All three conditions aligned on the last closed 45m candle.'; }
+  else {
+    v.className='verdict none'; $('vBig').textContent='NO SIGNAL';
+    const want = d===1 ? [gz?null:'close above ZLSMA', gm?null:'MACD above signal']
+                       : [!gz?null:'close below ZLSMA', !gm?null:'MACD below signal'];
+    const miss = want.filter(Boolean);
+    $('vNote').textContent = miss.length
+      ? 'Waiting on ' + miss.join(' and ') + '.'
+      : 'Conditions are split across the three inputs.';
+  }
+
+  // stats
+  const stop = d===1 ? ce.longStop[i] : ce.shortStop[i];
+  $('sStop').textContent = fmt(stop, 1);
+  const dist = (px - stop)/px*100;
+  $('sDist').textContent = (dist>=0?'+':'') + dist.toFixed(2) + '%';
+  $('sDist').className = 'v mono ' + (d===1 ? (dist>0?'up':'dn') : (dist<0?'up':'dn'));
+  $('sZl').textContent = fmt(z[i], 1);
+  $('sMd').textContent = fmt(m.line[i]-m.signal[i], 1);
+
+  // position + performance
+  const side = wf.pos===1?'LONG':wf.pos===-1?'SHORT':'FLAT';
+  $('pSide').textContent = side;
+  $('pSide').className = 'v ' + (wf.pos===1?'up':wf.pos===-1?'dn':'flat');
+  if (wf.pos){
+    $('pEntry').textContent = fmt(wf.entry,1);
+    const g = wf.pos===1 ? (px-wf.entry)/wf.entry : (wf.entry-px)/wf.entry;
+    const net = (g - 2*FEE)*100;
+    $('pPnl').textContent = (net>=0?'+':'') + net.toFixed(2) + '%';
+    $('pPnl').className = 'v mono ' + (net>=0?'up':'dn');
+    $('pBars').textContent = (i - wf.entryIdx) + '';
+  } else {
+    $('pEntry').textContent = '—'; $('pPnl').textContent = '—';
+    $('pPnl').className='v mono'; $('pBars').textContent = '—';
+  }
+  const T = wf.trades;
+  $('pN').textContent = T.length;
+  if (T.length){
+    const w = T.filter(x=>x>0), l = T.filter(x=>x<=0);
+    const net = T.reduce((a,b)=>a+b,0)*100;
+    const gp = w.reduce((a,b)=>a+b,0), gl = Math.abs(l.reduce((a,b)=>a+b,0));
+    $('pWr').textContent = (w.length/T.length*100).toFixed(1) + '%';
+    $('pNet').textContent = (net>=0?'+':'') + net.toFixed(1) + '%';
+    $('pNet').className = 'v mono ' + (net>=0?'up':'dn');
+    $('pPf').textContent = gl > 0 ? (gp/gl).toFixed(2) : '∞';
+  } else { $('pWr').textContent='—'; $('pNet').textContent='—'; $('pPf').textContent='—'; }
+
+  drawChart(wf);
+  drawLog(wf);
+  tickClock();
+}
+
+function drawLog(wf){
+  const rows = wf.events.slice(-25).reverse();
+  if (!rows.length){ $('log').innerHTML = '<tr><td colspan="5" class="empty">No signals in the loaded history.</td></tr>'; return; }
+  $('log').innerHTML = rows.map(e=>{
+    const label = e.kind==='L' ? 'Enter long' : e.kind==='S' ? 'Enter short' : e.why;
+    const res = e.kind==='X'
+      ? `<span class="${e.net>=0?'up':'dn'}">${(e.net>=0?'+':'')+(e.net*100).toFixed(2)}%</span>` : '';
+    return `<tr><td class="mono">${utc(e.t)}</td>
+      <td><span class="tag ${e.kind}">${label}</span></td>
+      <td class="mono">${fmt(e.px,1)}</td>
+      <td class="mono" style="color:var(--mut)">${fmt(e.stop,0)}</td>
+      <td class="mono">${res}</td></tr>`;
+  }).join('');
+}
+
+/* ─────────── chart ─────────── */
+function initChart(){
+  chart = LightweightCharts.createChart($('chart'), {
+    layout:{background:{color:'transparent'}, textColor:'#66748a',
+            fontFamily:"'JetBrains Mono', monospace", fontSize:10},
+    grid:{vertLines:{color:'rgba(29,38,52,.5)'}, horzLines:{color:'rgba(29,38,52,.5)'}},
+    rightPriceScale:{borderColor:'#1d2634'},
+    timeScale:{borderColor:'#1d2634', timeVisible:true, secondsVisible:false},
+    crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+    handleScale:{axisPressedMouseMove:{time:true,price:false}}
+  });
+  candleS = chart.addCandlestickSeries({
+    upColor:'#00d68f', downColor:'#ff4d6a', borderVisible:false,
+    wickUpColor:'#00d68f', wickDownColor:'#ff4d6a'});
+  zlS    = chart.addLineSeries({color:'#e8c547', lineWidth:2, priceLineVisible:false, lastValueVisible:false});
+  longS  = chart.addLineSeries({color:'#00d68f', lineWidth:1, priceLineVisible:false, lastValueVisible:false});
+  shortS = chart.addLineSeries({color:'#ff4d6a', lineWidth:1, priceLineVisible:false, lastValueVisible:false});
+  new ResizeObserver(()=>chart.timeScale().fitContent()).observe($('chart'));
+}
+
+function drawChart(wf){
+  const {ce,z} = ind;
+  const s = Math.max(0, bars.length - 260);
+  const slice = bars.slice(s);
+  candleS.setData(slice.map(b=>({time:b.t/1000, open:b.o, high:b.h, low:b.l, close:b.c})));
+  zlS.setData(slice.map((b,k)=>({time:b.t/1000, value:z[s+k]})).filter(p=>!isNaN(p.value)));
+  longS.setData(slice.map((b,k)=>({time:b.t/1000,
+    value: ce.dir[s+k]===1 ? ce.longStop[s+k] : undefined})).filter(p=>p.value!=null && !isNaN(p.value)));
+  shortS.setData(slice.map((b,k)=>({time:b.t/1000,
+    value: ce.dir[s+k]===-1 ? ce.shortStop[s+k] : undefined})).filter(p=>p.value!=null && !isNaN(p.value)));
+  candleS.setMarkers(wf.events.filter(e=>e.t >= slice[0].t).map(e=>({
+    time:e.t/1000,
+    position: e.kind==='S' ? 'aboveBar' : 'belowBar',
+    color: e.kind==='L' ? '#00d68f' : e.kind==='S' ? '#ff4d6a' : '#ffb020',
+    shape: e.kind==='X' ? 'circle' : (e.kind==='L' ? 'arrowUp' : 'arrowDown'),
+    text: e.kind==='X' ? '' : e.kind
+  })));
+  chart.timeScale().fitContent();
+}
+
+/* ─────────── live feed ─────────── */
+let ws, wsRetry = 0, hbTimer;
+function connect(){
+  setConn('warn','connecting');
+  ws = new WebSocket(WS);
+  ws.onopen = () => {
+    wsRetry = 0; setConn('on','live');
+    ws.send(JSON.stringify({op:'subscribe', args:[`kline.${BASE_MIN}.${SYMBOL}`, `tickers.${SYMBOL}`]}));
+    clearInterval(hbTimer);
+    hbTimer = setInterval(()=>{ if (ws.readyState===1) ws.send(JSON.stringify({op:'ping'})); }, 20000);
+  };
+  ws.onmessage = ev => {
+    const msg = JSON.parse(ev.data);
+    if (!msg.topic) return;
+    if (msg.topic.startsWith('tickers')){
+      const p = parseFloat(msg.data.lastPrice);
+      if (!isNaN(p)){ lastPx = p; softUpdate(); }
+      return;
+    }
+    if (msg.topic.startsWith('kline')){
+      for (const k of msg.data){
+        const bar = {t:+k.start, o:+k.open, h:+k.high, l:+k.low, c:+k.close, v:+k.volume};
+        const idx = base15.findIndex(b=>b.t===bar.t);
+        if (idx >= 0) base15[idx] = bar; else base15.push(bar);
+        lastPx = bar.c;
+        if (k.confirm) rebuild();          // closed 15m candle → re-evaluate
+      }
+      softUpdate();
+    }
+  };
+  ws.onclose = () => {
+    clearInterval(hbTimer); setConn('off','reconnecting');
+    setTimeout(connect, Math.min(30000, 1000 * Math.pow(2, wsRetry++)));
+  };
+  ws.onerror = () => ws.close();
+}
+
+function softUpdate(){
+  if (lastPx == null) return;
+  $('price').textContent = fmt(lastPx, 1);
+  if (ind){
+    const i = bars[bars.length-1].partial ? bars.length-2 : bars.length-1;
+    const stop = ind.ce.dir[i]===1 ? ind.ce.longStop[i] : ind.ce.shortStop[i];
+    const dist = (lastPx - stop)/lastPx*100;
+    $('sDist').textContent = (dist>=0?'+':'') + dist.toFixed(2) + '%';
+  }
+}
+
+function tickClock(){
+  const next = Math.ceil(Date.now()/BUCKET)*BUCKET;
+  const s = Math.max(0, Math.floor((next - Date.now())/1000));
+  $('clock').textContent = `next close in ${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+}
+setInterval(tickClock, 1000);
+
+/* ─────────── boot ─────────── */
+$('segExit').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  exitMode = b.dataset.v;
+  [...$('segExit').children].forEach(x=>x.classList.toggle('sel', x===b));
+  render();
+});
+
+(async function boot(){
+  initChart();
+  const isFile = location.protocol === 'file:';
+  if (isFile){
+    showBanner('<b>Opened as a local file.</b> Safari blocks network requests from ' +
+      '<span class="mono">file://</span> pages, so no candles can load. Serve the folder over HTTP ' +
+      '(<span class="mono">python3 -m http.server 8000</span>) or publish it to GitHub Pages.');
+  }
+  setConn('warn', 'loading candles');
+  try {
+    await loadHistory();
+    prevClose = bars.length>1 ? bars[bars.length-2].c : null;
+    connect();
+  } catch (err){
+    setConn('off','offline');
+    $('vBig').textContent = 'OFFLINE';
+    $('vNote').textContent = 'No candle data.';
+    showBanner(`<b>Could not load candles from Bybit.</b> ${err.message}.` +
+      (isFile ? ' This is expected over <span class="mono">file://</span> — see above.' : '') +
+      `<br><button class="retry" onclick="location.reload()">Try again</button>`);
+  }
+})();
+</script>
+</body>
+</html>
